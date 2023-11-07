@@ -5,12 +5,10 @@ module Decidim
     module Admin
       # This command is executed when the user creates a Project from the admin
       # panel.
-      class CreateProject < Decidim::Command
+      class CreateProject < Decidim::Commands::CreateResource
         include ::Decidim::GalleryMethods
 
-        def initialize(form)
-          @form = form
-        end
+        fetch_form_attributes :budget, :scope, :category, :title, :description, :budget_amount, :address, :latitude, :longitude
 
         # Creates the project if valid.
         #
@@ -34,28 +32,15 @@ module Decidim
 
         private
 
-        attr_reader :form, :project, :gallery
+        attr_reader :gallery
 
-        def create_project!
-          attributes = {
-            budget: form.budget,
-            scope: form.scope,
-            category: form.category,
-            title: form.title,
-            description: form.description,
-            budget_amount: form.budget_amount,
-            address: form.address,
-            latitude: form.latitude,
-            longitude: form.longitude
-          }
+        def extra_params = { visibility: "all" }
 
-          @project = Decidim.traceability.create!(
-            Project,
-            form.current_user,
-            attributes,
-            visibility: "all"
-          )
-          @attached_to = @project
+        def resource_class = Decidim::Budgets::Project
+
+        def create_resource
+          super(soft: false)
+          @attached_to = resource
         end
 
         def proposals

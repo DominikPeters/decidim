@@ -5,16 +5,17 @@ module Decidim
     module Admin
       # This command is executed when the user changes a Project from the admin
       # panel.
-      class UpdateProject < Decidim::Command
+      class UpdateProject < Decidim::Commands::UpdateResource
         include ::Decidim::GalleryMethods
+
+        fetch_form_attributes :scope, :category, :title, :description, :budget_amount, :address, :latitude, :longitude
 
         # Initializes an UpdateProject Command.
         #
         # form - The form from which to get the data.
         # project - The current instance of the project to be updated.
-        def initialize(form, project)
-          @form = form
-          @project = project
+        def initialize(form, resource)
+          super(form, resource)
           @attached_to = project
         end
 
@@ -30,7 +31,7 @@ module Decidim
           end
 
           transaction do
-            update_project
+            update_resource
             link_proposals
             create_gallery if process_gallery?
             photo_cleanup!
@@ -43,21 +44,7 @@ module Decidim
 
         attr_reader :project, :form, :gallery
 
-        def update_project
-          Decidim.traceability.update!(
-            project,
-            form.current_user,
-            scope: form.scope,
-            category: form.category,
-            title: form.title,
-            description: form.description,
-            budget_amount: form.budget_amount,
-            selected_at:,
-            address: form.address,
-            latitude: form.latitude,
-            longitude: form.longitude
-          )
-        end
+        def attributes = super.merge(selected_at: )
 
         def proposals
           @proposals ||= project.sibling_scope(:proposals).where(id: form.proposal_ids)
