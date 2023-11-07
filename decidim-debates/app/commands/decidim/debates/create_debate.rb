@@ -4,11 +4,7 @@ module Decidim
   module Debates
     # This command is executed when the user creates a Debate from the public
     # views.
-    class CreateDebate < Decidim::Command
-      def initialize(form)
-        @form = form
-      end
-
+    class CreateDebate < Decidim::Commands::CreateResource
       # Creates the debate if valid.
       #
       # Broadcasts :ok if successful, :invalid otherwise.
@@ -16,32 +12,19 @@ module Decidim
         return broadcast(:invalid) if form.invalid?
 
         with_events(with_transaction: true) do
-          create_debate
+          create_resource
         end
-        send_notification_to_author_followers
-        send_notification_to_space_followers
-        follow_debate
-        broadcast(:ok, debate)
+
+        broadcast(:ok, resource)
       end
 
-      private
+      protected
 
-      attr_reader :debate, :form
-
-      def event_arguments
-        {
-          resource: debate,
-          extra: {
-            event_author: form.current_user,
-            locale:
-          }
-        }
-      end
-
-      def create_debate
+      def attributes
         parsed_title = Decidim::ContentProcessor.parse_with_processor(:hashtag, form.title, current_organization: form.current_organization).rewrite
         parsed_description = Decidim::ContentProcessor.parse_with_processor(:hashtag, form.description, current_organization: form.current_organization).rewrite
-        params = {
+
+        {
           author: form.current_user,
           decidim_user_group_id: form.user_group_id,
           category: form.category,
@@ -54,21 +37,36 @@ module Decidim
           scope: form.scope,
           component: form.current_component
         }
-
-        @debate = Decidim.traceability.create!(
-          Debate,
-          form.current_user,
-          params,
-          visibility: "public-only"
-        )
       end
+
+      def run_after_hooks
+        send_notification_to_author_followers
+        send_notification_to_space_followers
+        follow_debate
+      end
+
+      private
+
+      def event_arguments
+        {
+          resource:,
+          extra: {
+            event_author: form.current_user,
+            locale:
+          }
+        }
+      end
+
+      def resource_class = Decidim::Debates::Debate
+
+      def extra_params = { visibility: "public-only" }
 
       def send_notification_to_author_followers
         Decidim::EventsManager.publish(
           event: "decidim.events.debates.debate_created",
           event_class: Decidim::Debates::CreateDebateEvent,
-          resource: debate,
-          followers: debate.author.followers,
+          resource:,
+          followers: resource.author.followers,
           extra: {
             type: "user"
           }
@@ -79,8 +77,8 @@ module Decidim
         Decidim::EventsManager.publish(
           event: "decidim.events.debates.debate_created",
           event_class: Decidim::Debates::CreateDebateEvent,
-          resource: debate,
-          followers: debate.participatory_space.followers,
+          resource:,
+          followers: resource.participatory_space.followers,
           extra: {
             type: "participatory_space"
           }
@@ -89,9 +87,9 @@ module Decidim
 
       def follow_debate
         follow_form = Decidim::FollowForm
-                      .from_params(followable_gid: debate.to_signed_global_id.to_s)
-                      .with_context(current_user: debate.author)
-        Decidim::CreateFollow.call(follow_form, debate.author)
+                      .from_params(followable_gid: resource.to_signed_global_id.to_s)
+                      .with_context(current_user: resource.author)
+        Decidim::CreateFollow.call(follow_form, resource.author)
       end
     end
   end
