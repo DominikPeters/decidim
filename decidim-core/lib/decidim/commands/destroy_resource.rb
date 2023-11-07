@@ -19,7 +19,8 @@ module Decidim
         run_after_hooks
 
         broadcast(:ok, resource)
-      rescue Decidim::Commands::HookError, ActiveRecord::ActiveRecordError
+      rescue Decidim::Commands::HookError, ActiveRecord::ActiveRecordError, StandardError => e
+        Rails.logger.info("Error destroying resource: #{e.message}")
         broadcast(:invalid)
       end
 
