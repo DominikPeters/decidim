@@ -19,39 +19,31 @@ module Decidim
           @attached_to = project
         end
 
-        # Updates the project if valid.
-        #
-        # Broadcasts :ok if successful, :invalid otherwise.
-        def call
-          return broadcast(:invalid) if form.invalid?
-
-          if process_gallery?
-            build_gallery
-            return broadcast(:invalid) if gallery_invalid?
-          end
-
-          transaction do
-            update_resource
-            link_proposals
-            create_gallery if process_gallery?
-            photo_cleanup!
-          end
-
-          broadcast(:ok)
-        end
-
         private
 
-        attr_reader :project, :form, :gallery
+        attr_reader :gallery
 
-        def attributes = super.merge(selected_at: )
+        def run_before_hooks
+          if process_gallery?
+            build_gallery
+            raise Decidim::Commands::HookError if gallery_invalid?
+          end
+        end
+
+        def run_after_hooks
+          link_proposals
+          create_gallery if process_gallery?
+          photo_cleanup!
+        end
+
+        def attributes = super.merge(selected_at:)
 
         def proposals
-          @proposals ||= project.sibling_scope(:proposals).where(id: form.proposal_ids)
+          @proposals ||= resource.sibling_scope(:proposals).where(id: form.proposal_ids)
         end
 
         def link_proposals
-          project.link_resources(proposals, "included_proposals")
+          resource.link_resources(proposals, "included_proposals")
         end
 
         def selected_at
