@@ -11,6 +11,7 @@ module Decidim
   # Base module for this engine.
   module Budgets
     autoload :ProjectSerializer, "decidim/budgets/project_serializer"
+    autoload :ProjectAndVotesSerializer, "decidim/budgets/project_and_votes_serializer"
 
     include ActiveSupport::Configurable
 

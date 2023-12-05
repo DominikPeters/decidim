@@ -96,6 +96,11 @@ module Decidim
         orders.finished.count
       end
 
+      # Public: Returns the orders that include this project.
+      def confirmed_orders
+        orders.finished
+      end
+
       # Public: Overrides the `allow_resource_permissions?` Resourceable concern method.
       def allow_resource_permissions?
         component.settings.resources_permissions_enabled

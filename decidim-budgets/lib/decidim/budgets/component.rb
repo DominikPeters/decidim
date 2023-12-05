@@ -74,6 +74,20 @@ Decidim.register_component(:budgets) do |component|
     exports.serializer Decidim::Budgets::ProjectSerializer
   end
 
+  component.exports :projects_and_votes do |exports|
+    exports.collection do |component_instance, _user, resource_id|
+      budgets = resource_id ? Decidim::Budgets::Budget.find(resource_id) : Decidim::Budgets::Budget.where(decidim_component_id: component_instance)
+      projects = Decidim::Budgets::Project
+                .where(decidim_budgets_budget_id: budgets)
+                .includes(:category, :component)
+      Decidim::Budgets::Admin::VoteAnonymizationHelper.anonymize_votes(projects)
+    end
+
+    exports.include_in_open_data = false
+
+    exports.serializer Decidim::Budgets::ProjectAndVotesSerializer
+  end
+
   component.settings(:global) do |settings|
     settings.attribute :scopes_enabled, type: :boolean, default: false
     settings.attribute :scope_id, type: :scope

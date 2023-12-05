@@ -79,6 +79,7 @@ en:
             success: Budget successfully updated.
         exports:
           projects: Projects
+          projects_and_votes: Projects and votes
         models:
           budget:
             name: Budget
