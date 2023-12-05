@@ -3,7 +3,7 @@
 require "spec_helper"
 
 module Decidim::Budgets
-  describe ProjectSerializer do
+  describe ProjectAndVotesSerializer do
     let(:component) { create(:budgets_component) }
     let(:budget) { create(:budget, component:) }
     let(:serialized) { subject.run }
@@ -13,8 +13,10 @@ module Decidim::Budgets
     let(:category) { create(:category, participatory_space: budget.component.participatory_space) }
     let(:scope) { create(:scope, organization: category.participatory_space.organization) }
     let(:project) { create(:project, budget:, category:, scope:) }
+    let(:voters) { create_list(:user, project.confirmed_orders_count) }
+    let(:project_with_anonymized_votes) { Struct.new(:project, :voters).new(project, voters.map(&:id)) }
 
-    subject { described_class.new(project) }
+    subject { described_class.new(project_with_anonymized_votes) }
 
     describe "#serializer" do
       before { project.link_resources(proposals, "included_proposals") }
@@ -58,17 +60,12 @@ module Decidim::Budgets
         expect(serialized[:budget_amount]).to eq(project.budget_amount)
       end
 
-      context "when show votes is disabled" do
-        it "does not include count of confirmed votes" do
-          expect(serialized[:confirmed_votes]).to be_nil
-        end
+      it "includes count of confirmed votes" do
+        expect(serialized[:confirmed_votes]).to eq(project.confirmed_orders_count)
       end
 
-      context "when show votes is enabled" do
-        let(:component) { create(:budgets_component, :with_show_votes_enabled) }
-        it "includes count of confirmed votes" do
-          expect(serialized[:confirmed_votes]).to eq(project.confirmed_orders_count)
-        end
+      it "includes the voter ids" do
+        expect(serialized[:anonymized_voters]).to match_array(voters.map(&:id))
       end
 
       it "includes comment count" do
@@ -101,8 +98,8 @@ module Decidim::Budgets
     end
 
     context "when subscribed to the serialize event" do
-      ActiveSupport::Notifications.subscribe("decidim.serialize.budgets.project_serializer") do |_event_name, data|
-        data[:serialized_data][:test_field] = "Resource class: #{data[:resource].class}"
+      ActiveSupport::Notifications.subscribe("decidim.serialize.budgets.project_and_votes_serializer") do |_event_name, data|
+        data[:serialized_data][:test_field] = "Resource class: #{data[:resource].project.class}"
       end
 
       it "includes new field" do
